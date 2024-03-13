@@ -1,8 +1,9 @@
 package it.ingloriouscoderz.todolist.controllers;
 
-import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -14,55 +15,43 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import it.ingloriouscoderz.todolist.model.Task;
+import it.ingloriouscoderz.todolist.services.TaskRepository;
 
 @RestController
 @RequestMapping("/tasks")
 public class TaskController {
-  private List<Task> tasks;
-
-  public TaskController() {
-    tasks = new ArrayList<Task>();
-    tasks.add(new Task(1, "Learn Spring", true));
-    tasks.add(new Task(2, "Do interview", false));
-    tasks.add(new Task(3, "Forget everything", false));
-  }
+  @Autowired
+  TaskRepository tasks;
 
   @GetMapping
   public List<Task> getTasks() {
-    return tasks;
+    return tasks.findAll();
   }
 
   @PostMapping
   public Task create(@RequestBody Task body) {
-    int maxId = tasks.size() > 0 ? tasks.get(tasks.size() - 1).id() : 0;
-    Task task = new Task(maxId + 1, body.text(), body.completed());
-    tasks.add(task);
+    Task task = tasks.insert(new Task(null, body.text(), body.completed()));
     return task;
   }
 
   @PutMapping("/{id}")
-  public Task replace(@PathVariable int id, @RequestBody Task body) {
-    Task taskToReplace = tasks.stream().filter(t -> t.id() == id).findAny().orElse(null);
-    int index = tasks.indexOf(taskToReplace);
-    Task task = new Task(id, body.text(), body.completed());
-    tasks.set(index, task);
+  public Task replace(@PathVariable String id, @RequestBody Task body) {
+    Task task = tasks.save(new Task(id, body.text(), body.completed()));
     return task;
   }
 
   @PatchMapping("/{id}")
-  public Task update(@PathVariable int id, @RequestBody Task body) {
-    Task taskToReplace = tasks.stream().filter(t -> t.id() == id).findAny().orElse(null);
-    int index = tasks.indexOf(taskToReplace);
-    Task task = new Task(id, body.text() != null ? body.text() : taskToReplace.text(),
-        body.completed() != null ? body.completed() : taskToReplace.completed());
-    tasks.set(index, task);
+  public Task update(@PathVariable String id, @RequestBody Task body) {
+    Optional<Task> taskToUpdate = tasks.findById(id);
+    Task task = tasks.save(new Task(id, body.text() != null ? body.text() : taskToUpdate.get().text(),
+        body.completed() != null ? body.completed() : taskToUpdate.get().completed()));
     return task;
   }
 
   @DeleteMapping("/{id}")
-  public Task delete(@PathVariable int id) {
-    Task task = tasks.stream().filter(t -> t.id() == id).findAny().orElse(null);
-    tasks.remove(task);
-    return task;
+  public Task delete(@PathVariable String id) {
+    Optional<Task> task = tasks.findById(id);
+    tasks.delete(task.get());
+    return task.get();
   }
 }
